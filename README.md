@@ -29,7 +29,7 @@ Official Kotlin SDK for LogWard with advanced features: automatic batching, retr
 
 ```kotlin
 dependencies {
-    implementation("dev.logward:logward-sdk-kotlin:0.1.0")
+    implementation("io.github.logward-dev:logward-sdk-kotlin:0.1.0")
 }
 ```
 
@@ -37,7 +37,7 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation 'dev.logward:logward-sdk-kotlin:0.1.0'
+    implementation 'io.github.logward-dev:logward-sdk-kotlin:0.1.0'
 }
 ```
 
@@ -45,7 +45,7 @@ dependencies {
 
 ```xml
 <dependency>
-    <groupId>dev.logward</groupId>
+    <groupId>io.github.logward-dev</groupId>
     <artifactId>logward-sdk-kotlin</artifactId>
     <version>0.1.0</version>
 </dependency>
