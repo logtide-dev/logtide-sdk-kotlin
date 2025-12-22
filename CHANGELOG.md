@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-12-22
+
+### Added
+
+- **Coroutine-safe Trace ID**: Full support for Kotlin coroutines with proper trace ID propagation
+  - `TraceIdElement`: A `CopyableThreadContextElement` that propagates trace ID across thread switches
+  - `withTraceIdSuspend(traceId, block)`: Execute suspend function with coroutine-safe trace ID
+  - `withNewTraceIdSuspend(block)`: Generate new trace ID for suspend functions
+  - `getTraceIdSuspend()`: Get current trace ID from coroutine context
+  - `currentTraceId()`: Top-level suspend function to get trace ID anywhere
+- **Automatic Ktor Coroutine Integration**: Trace ID is now automatically propagated in all Ktor route coroutines
+  - Uses `ApplicationCallPipeline.Call` intercept to wrap requests with `TraceIdElement`
+  - No manual wrapping needed - just use the LogWard client in your routes
+  - Trace ID from `X-Trace-ID` header or auto-generated UUID
+
+### Changed
+
+- Trace ID ThreadLocal is now shared across the SDK for consistency
+- Ktor plugin now always generates a trace ID (from header or new UUID)
+- Response logging includes trace ID in metadata
+
+### Fixed
+
+- Trace ID no longer gets lost when coroutines switch threads
+- Trace ID properly propagates to child coroutines (launch/async)
+- Nested trace ID contexts now restore correctly
+
 ## [0.2.0] - 2025-11-24
 
 ### Added
@@ -51,5 +78,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kotlin coroutines support for async operations
 - Full Kotlin idioms: data classes, inline functions, DSL builder
 
+[0.3.0]: https://github.com/logward-dev/logward-sdk-kotlin/releases/tag/v0.3.0
 [0.2.0]: https://github.com/logward-dev/logward-sdk-kotlin/releases/tag/v0.2.0
 [0.1.0]: https://github.com/logward-dev/logward-sdk-kotlin/releases/tag/v0.1.0

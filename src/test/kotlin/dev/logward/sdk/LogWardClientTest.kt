@@ -4,7 +4,7 @@ import dev.logward.sdk.enums.LogLevel
 import dev.logward.sdk.exceptions.BufferFullException
 import dev.logward.sdk.models.LogEntry
 import dev.logward.sdk.models.LogWardClientOptions
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -35,6 +35,9 @@ class LogWardClientTest {
 
     @AfterEach
     fun teardown() {
+        // Clear shared ThreadLocal to avoid test pollution
+        client.setTraceId(null)
+
         runBlocking {
             try {
                 client.close()
@@ -105,6 +108,83 @@ class LogWardClientTest {
             val traceId = client.getTraceId()
             assertNotNull(traceId)
             assertTrue(traceId.matches(Regex("[0-9a-f-]{36}")))
+        }
+    }
+
+    // ==================== Coroutine-safe Trace ID Tests ====================
+
+    @Test
+    fun `should handle suspend trace ID context`() = runBlocking {
+        assertNull(client.getTraceIdSuspend())
+
+        val validTraceId = "550e8400-e29b-41d4-a716-446655440002"
+        client.withTraceIdSuspend(validTraceId) {
+            assertEquals(validTraceId, client.getTraceIdSuspend())
+        }
+
+        // Should be restored to null after scope
+        assertNull(client.getTraceIdSuspend())
+    }
+
+    @Test
+    fun `should propagate trace ID across thread switches`() = runBlocking {
+        val validTraceId = "550e8400-e29b-41d4-a716-446655440003"
+
+        client.withTraceIdSuspend(validTraceId) {
+            // Switch to different dispatcher - trace ID should be preserved
+            val traceIdOnDifferentThread = withContext(Dispatchers.Default) {
+                client.getTraceIdSuspend()
+            }
+            assertEquals(validTraceId, traceIdOnDifferentThread)
+        }
+    }
+
+    @Test
+    fun `should propagate trace ID to child coroutines`() = runBlocking {
+        val validTraceId = "550e8400-e29b-41d4-a716-446655440004"
+
+        client.withTraceIdSuspend(validTraceId) {
+            // Launch child coroutine
+            val deferredTraceId = async {
+                client.getTraceIdSuspend()
+            }
+            assertEquals(validTraceId, deferredTraceId.await())
+
+            // Multiple child coroutines
+            coroutineScope {
+                launch {
+                    assertEquals(validTraceId, client.getTraceIdSuspend())
+                }
+                launch {
+                    assertEquals(validTraceId, client.getTraceIdSuspend())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `should generate new suspend trace ID`() = runBlocking {
+        client.withNewTraceIdSuspend {
+            val traceId = client.getTraceIdSuspend()
+            assertNotNull(traceId)
+            assertTrue(traceId.matches(Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")))
+        }
+    }
+
+    @Test
+    fun `should handle nested suspend trace IDs`() = runBlocking {
+        val outerTraceId = "550e8400-e29b-41d4-a716-446655440005"
+        val innerTraceId = "550e8400-e29b-41d4-a716-446655440006"
+
+        client.withTraceIdSuspend(outerTraceId) {
+            assertEquals(outerTraceId, client.getTraceIdSuspend())
+
+            client.withTraceIdSuspend(innerTraceId) {
+                assertEquals(innerTraceId, client.getTraceIdSuspend())
+            }
+
+            // Should restore outer trace ID
+            assertEquals(outerTraceId, client.getTraceIdSuspend())
         }
     }
 

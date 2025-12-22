@@ -1,3 +1,6 @@
+@file:OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
+@file:Suppress("unused") // Public API functions may not be used internally
+
 package dev.logward.sdk
 
 import dev.logward.sdk.enums.CircuitState
@@ -15,13 +18,10 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import java.io.IOException
-import java.time.Instant
 import java.util.*
 import java.util.concurrent.*
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.concurrent.thread
 import kotlin.math.pow
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * LogWard Kotlin SDK Client
@@ -57,8 +57,8 @@ class LogWardClient(private val options: LogWardClientOptions) {
     private val latencyWindow = mutableListOf<Double>()
     private val maxLatencyWindow = 100
     
-    // Trace ID context (ThreadLocal for thread safety)
-    internal val traceIdContext = ThreadLocal<String?>()
+    // Trace ID context (uses shared ThreadLocal from TraceIdContext for coroutine compatibility)
+    internal val traceIdContext: ThreadLocal<String?> get() = threadLocalTraceId
     
     // Periodic flush timer
     private val flushExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r ->
@@ -123,7 +123,54 @@ class LogWardClient(private val options: LogWardClientOptions) {
     fun <T> withNewTraceId(block: () -> T): T {
         return withTraceId(UUID.randomUUID().toString(), block)
     }
-    
+
+    // ==================== Coroutine-safe Trace ID Methods ====================
+
+    /**
+     * Execute suspend function with a specific trace ID context (coroutine-safe)
+     *
+     * This version properly propagates the trace ID across:
+     * - Thread switches during suspension
+     * - Child coroutines created with launch/async
+     * - Context switches with withContext
+     *
+     * Example:
+     * ```kotlin
+     * client.withTraceIdSuspend("my-trace-id") {
+     *     // All logs here will have the trace ID
+     *     client.info("service", "Starting operation")
+     *
+     *     // Even in child coroutines
+     *     coroutineScope {
+     *         launch { client.info("service", "Child operation") }
+     *     }
+     * }
+     * ```
+     */
+    suspend fun <T> withTraceIdSuspend(traceId: String, block: suspend () -> T): T {
+        val normalizedTraceId = normalizeTraceId(traceId) ?: UUID.randomUUID().toString()
+        return withContext(TraceIdElement(normalizedTraceId)) {
+            block()
+        }
+    }
+
+    /**
+     * Execute suspend function with a new auto-generated trace ID (coroutine-safe)
+     */
+    suspend fun <T> withNewTraceIdSuspend(block: suspend () -> T): T {
+        return withTraceIdSuspend(UUID.randomUUID().toString(), block)
+    }
+
+    /**
+     * Get current trace ID (coroutine-safe)
+     *
+     * Checks both the coroutine context and ThreadLocal for compatibility
+     * with both suspend and non-suspend code.
+     */
+    suspend fun getTraceIdSuspend(): String? {
+        return kotlin.coroutines.coroutineContext[TraceIdElement]?.traceId ?: traceIdContext.get()
+    }
+
     // ==================== Logging Methods ====================
     
     /**
