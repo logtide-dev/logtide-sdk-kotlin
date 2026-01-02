@@ -168,7 +168,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
      * with both suspend and non-suspend code.
      */
     suspend fun getTraceIdSuspend(): String? {
-        return kotlin.coroutines.coroutineContext[TraceIdElement]?.traceId ?: traceIdContext.get()
+        return currentCoroutineContext()[TraceIdElement]?.traceId ?: traceIdContext.get()
     }
 
     // ==================== Logging Methods ====================
