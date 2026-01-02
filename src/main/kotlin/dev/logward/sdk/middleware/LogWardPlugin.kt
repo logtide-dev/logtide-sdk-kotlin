@@ -5,6 +5,7 @@ package dev.logward.sdk.middleware
 import dev.logward.sdk.LogWardClient
 import dev.logward.sdk.TraceIdElement
 import dev.logward.sdk.models.LogWardClientOptions
+import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.util.*
@@ -225,8 +226,8 @@ val LogWardPlugin = createApplicationPlugin(
 
     val responseHandled = AttributeKey<Boolean>("RespondHandled")
 
-
-    onCallRespond { call ->
+    onCallRespond { call, body ->
+        if (body !is OutgoingContent) return@onCallRespond
         if (call.attributes.getOrNull(responseHandled) == true) return@onCallRespond
         call.attributes.put(responseHandled, true)
 
