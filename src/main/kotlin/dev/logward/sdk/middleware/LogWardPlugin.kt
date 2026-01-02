@@ -223,7 +223,13 @@ val LogWardPlugin = createApplicationPlugin(
         }
     }
 
+    val responseHandled = AttributeKey<Boolean>("RespondHandled")
+
+
     onCallRespond { call ->
+        if (call.attributes.getOrNull(responseHandled) == true) return@onCallRespond
+        call.attributes.put(responseHandled, true)
+
         val path = call.request.uri
 
         if (shouldSkip(path, config)) {
