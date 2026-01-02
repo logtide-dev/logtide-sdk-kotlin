@@ -534,7 +534,9 @@ class LogWardClient(private val options: LogWardClientOptions) {
         
         flush()
         flushExecutor.shutdown()
-        flushExecutor.awaitTermination(5, TimeUnit.SECONDS)
+        withContext(Dispatchers.IO) {
+            flushExecutor.awaitTermination(5, TimeUnit.SECONDS)
+        }
         scope.cancel()
         httpClient.dispatcher.executorService.shutdown()
         httpClient.connectionPool.evictAll()
