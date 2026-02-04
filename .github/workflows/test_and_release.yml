@@ -55,10 +55,10 @@ jobs:
           java-version: 17
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
       - name: Run JUnit tests
-        run: ./gradlew test
+        run: |
+          chmod +x ./gradlew
+          bash ./gradlew test
       - name: Verify version matches tag
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
@@ -71,7 +71,9 @@ jobs:
           fi
 
       - name: Build JAR
-        run: ./gradlew clean build -x test
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build -x test
 
       - name: Publish to Sonatype OSSRH and Maven Central
         env:
@@ -80,7 +82,9 @@ jobs:
           KEY_ID: ${{ secrets.KEY_ID }}
           OSSRH_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-        run: ./gradlew publishAndReleaseToMavenCentral --no-daemon --stacktrace
+        run: |
+          chmod +x ./gradlew
+          ./gradlew publishAndReleaseToMavenCentral --no-daemon --stacktrace
 
       - name: Upload JAR to GitHub release
         uses: actions/upload-release-asset@v1
