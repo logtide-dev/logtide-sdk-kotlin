@@ -1,5 +1,4 @@
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
-import org.gradle.api.publish.maven.internal.publisher.MavenRemotePublisher
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -141,21 +140,26 @@ tasks["publishAndReleaseToMavenCentral"].dependsOn("checkVersionTag")
 
 @OptIn(ExperimentalEncodingApi::class)
 fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
-    val keyId = System.getenv("KEY_ID")
-    val keyBytes = System.getenv("SECRING")?.let { Base64.decode(it.toByteArray()).decodeToString() } ?: null
+    val keyId = System.getenv("KEY_ID").also {
+        if (it == null) {
+            println("KEY_ID environment variable not set, assuming binary .gpg key.")
+        }
+    }
+    val keyBytes = System.getenv("SECRING")?.let { Base64.decode(it.toByteArray()).decodeToString() }
     val keyPassword = System.getenv("PASSWORD")
 
-    if (keyPassword != null) {
-        project.extensions.configure<SigningExtension>("signing") {
-            // For binary .gpg keys
-            if (keyId == null) {
-                useInMemoryPgpKeys(keyBytes, keyPassword)
-            } else {
-                useInMemoryPgpKeys(keyId, keyBytes, keyPassword)
-            }
-            signAllPublications()
+    if (keyBytes == null || keyPassword == null) {
+        println("Signing environment variables not set, skipping signing.")
+        return
+    }
+
+    project.extensions.configure<SigningExtension>("signing") {
+        // For binary .gpg keys
+        if (keyId == null) {
+            useInMemoryPgpKeys(keyBytes, keyPassword)
+        } else {
+            useInMemoryPgpKeys(keyId, keyBytes, keyPassword)
         }
-    } else {
-        println("Signing skipped: PASSWORD environment variable not set.")
+        signAllPublications()
     }
 }
