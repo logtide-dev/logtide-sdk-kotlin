@@ -96,6 +96,11 @@ mavenPublishing {
                 name.set("Polliog")
                 email.set("giuseppe@solture.it")
             }
+            developer {
+                id.set("emanueleiannuzzi")
+                name.set("Emanuele Iannuzzi")
+                email.set("hello@emanueleiannuzzi.me")
+            }
         }
 
         scm {
