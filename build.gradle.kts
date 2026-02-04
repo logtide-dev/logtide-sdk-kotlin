@@ -1,4 +1,5 @@
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import org.gradle.api.publish.maven.internal.publisher.MavenRemotePublisher
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -114,25 +115,29 @@ mavenPublishing {
     }
 }
 
-gradle.taskGraph.whenReady {
-    val tag = System.getenv("GITHUB_REF_NAME")
-        ?.removePrefix("v")
-        ?: return@whenReady
-
-    val versionString = project.version.toString()
-
-    if (versionString != tag) {
-        throw GradleException(
-            "Version mismatch: project.version=$versionString, tag=$tag"
-        )
-    }
-}
-
 tasks.register("printVersion") {
     doLast {
         println(project.version.toString())
     }
 }
+
+tasks.register("checkVersionTag") {
+    doLast {
+        val tag = System.getenv("GITHUB_REF_NAME")
+            ?.removePrefix("v")
+            ?: return@doLast
+
+        val versionString = project.version.toString()
+
+        if (versionString != tag) {
+            throw GradleException(
+                "Version mismatch: project.version=$versionString, tag=$tag"
+            )
+        }
+    }
+}
+
+tasks["publishAndReleaseToMavenCentral"].dependsOn("checkVersionTag")
 
 @OptIn(ExperimentalEncodingApi::class)
 fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
